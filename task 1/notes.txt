@@ -1,0 +1,5 @@
+In your second code you have used the OpenMP critical construct. 
+This is a relatively heavy-weight in comparison with the atomic adds, usually used to implement the reduction at the end. 
+Atomic adds on x86 are performed using the LOCK instruction prefix and everything gets implemented in the hardware. 
+On the other side, critical sections are implemented using mutexes and require several instructions and often busy waiting loops. 
+This is far less efficient than the atomic adds.
