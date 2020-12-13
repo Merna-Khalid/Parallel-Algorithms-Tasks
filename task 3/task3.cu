@@ -6,20 +6,19 @@
 
 using namespace std;
 
+const int m_ = 64;
 
 __global__ void distanceKernel(int* a, int m, int n, int* d)
 {
-    int row1 = blockIdx.x * blockDim.x + threadIdx.x;
-    int row2 = blockIdx.y * blockDim.y + threadIdx.y;
-    if (row1 < m && row2 < m)
-    {
-        int tmp = 0;
-        for (int i = 0; i < n; i++)
-        {
-            tmp += (a[row1 * n + i] - a[row2 * n + i]) * (a[row1 * n + i] - a[row2 * n + i]);
-        }
-        d[row1 * m + row2] = tmp;
-    }
+
+    __shared__ int tmp[m_][m_];
+    int row1 = blockIdx.x * blockDim.x;
+    int row2 = blockIdx.y * blockDim.y;
+
+    __syncthreads();
+    tmp[row1][row2] += (a[row1 * n + threadIdx.x] - a[row2 * n + threadIdx.y]) * (a[row1 * n + threadIdx.x] - a[row2 * n + threadIdx.y]);
+    __syncthreads();
+    d[row1 * m + row2] = tmp[row1][row2];
 }
 
 void distance(int* a, int m, int n, int* d)
@@ -29,11 +28,12 @@ void distance(int* a, int m, int n, int* d)
     if (m > 16) {
         threadsPerBlock.x = 16;
         threadsPerBlock.y = 16;
-        blocksPerGrid.x = ceil(double(m) / double(threadsPerBlock.x));
-        blocksPerGrid.y = ceil(double(m) / double(threadsPerBlock.y));
+        blocksPerGrid.x = ceil(double(m) / double(n));
+        blocksPerGrid.y = ceil(double(m) / double(n));
         printf("%d\n", blocksPerGrid.x);
     }
-
+    cout << "blocks per grid x : " << blocksPerGrid.x << endl;
+    cout << "blocks per grid y : " << blocksPerGrid.x << endl;
     distanceKernel << <blocksPerGrid, threadsPerBlock >> > (a, m, n, d);
     {
         cudaError_t cudaerr = cudaDeviceSynchronize();
@@ -59,7 +59,7 @@ int main(int argc, char* argv[])
 
     //int m = 1024;
     //int n = 512;
-    int m = 128;
+    int m = 64;
     int n = 16;
     int nmbytes = n * m * sizeof(int);
     int mmbytes = m * m * sizeof(int);
